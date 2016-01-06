@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.concurrent.atomic.AtomicLong;
@@ -23,7 +24,7 @@ public class ServerMonitor {
 
     private Runtime runtime = Runtime.getRuntime();
 
-    static int mb = 1024*1024;
+    static int mb = 1024 * 1024;
 
     private long startTime;
     private AtomicLong requests;
@@ -34,31 +35,43 @@ public class ServerMonitor {
     private AtomicLong currentProcessTime;
     private AtomicLong totalProcessTime;
 
-
     private String osName;
     private String osVersion;
     private String osArch;
 
-    public ServerMonitor(){
+    //Lookup과 다르게 추가 된것
+    private Date cidWatcherLastSendHeartbeat;
+    private Date cidWatcherLastRecvHeartbeat;
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+    private String owners;
+    private AtomicLong cidWatchNumbers;
+
+    public ServerMonitor() {
         this(new Date().getTime());
         logger.info("서버 모니터링 시작");
     }
 
-    public ServerMonitor(long startTime){
+    public ServerMonitor(long startTime) {
         this.startTime = startTime;
         this.requests = new AtomicLong(0);
-        this.requests 	 		= new AtomicLong(0);
-        this.errors 	 		= new AtomicLong(0);
-        this.connections 		= new AtomicLong(0);
-        this.receivedBytes 		= new AtomicLong(0);
-        this.sendBytes 	 		= new AtomicLong(0);
+        this.requests = new AtomicLong(0);
+        this.errors = new AtomicLong(0);
+        this.connections = new AtomicLong(0);
+        this.receivedBytes = new AtomicLong(0);
+        this.sendBytes = new AtomicLong(0);
         this.currentProcessTime = new AtomicLong(0);
-        this.totalProcessTime  	= new AtomicLong(0);
+        this.totalProcessTime = new AtomicLong(0);
 
         this.osName = System.getProperty("os.name");
         this.osVersion = System.getProperty("os.version");
         this.osArch = System.getProperty("os.arch");
 
+        this.owners="";
+        this.cidWatchNumbers = new AtomicLong(0);
+
+        this.cidWatcherLastSendHeartbeat = new Date();
+        this.cidWatcherLastRecvHeartbeat = new Date();
     }
 
     public String getOsArch() {
@@ -73,29 +86,31 @@ public class ServerMonitor {
         return osVersion;
     }
 
-    public JsonObject getOsInfo(){
+    public JsonObject getOsInfo() {
         JsonObject obj = new JsonObject();
-        obj.addProperty("name",this.getOsName());
-        obj.addProperty("version",this.getOsVersion());
-        obj.addProperty("arch",this.getOsArch());
-        obj.addProperty("processors",runtime.availableProcessors());
+        obj.addProperty("name", this.getOsName());
+        obj.addProperty("version", this.getOsVersion());
+        obj.addProperty("arch", this.getOsArch());
+        obj.addProperty("processors", runtime.availableProcessors());
         return obj;
     }
 
     public JsonObject getMemoryInfo() {
         JsonObject obj = new JsonObject();
 
-        long maxmem   = runtime.maxMemory()/mb;
-        long totalmem = runtime.totalMemory()/mb;
-        long freemem  = runtime.freeMemory()/mb;
-        long usagemem = totalmem-freemem;
+        long maxmem = runtime.maxMemory() / mb;
+        long totalmem = runtime.totalMemory() / mb;
+        long freemem = runtime.freeMemory() / mb;
+        long usagemem = totalmem - freemem;
 
-        obj.addProperty("maxmem",maxmem);
-        obj.addProperty("totalmem",totalmem);
-        obj.addProperty("freemem",freemem);
-        obj.addProperty("usagemem",usagemem);
+        obj.addProperty("maxmem", maxmem);
+        obj.addProperty("totalmem", totalmem);
+        obj.addProperty("freemem", freemem);
+        obj.addProperty("usagemem", usagemem);
         return obj;
     }
+
+
 
     public long getUptime() {
         return getUptime(Calendar.SECOND);
@@ -206,12 +221,51 @@ public class ServerMonitor {
         return totalProcessTime.addAndGet(processTime);
     }
 
+    //Lookup과 다르게 추가 된것
+    public Date getCidWatcherLastSendHeartbeat() {
+        return cidWatcherLastSendHeartbeat;
+    }
+
+    public void setCidWatcherLastSendHeartbeat(Date cidWatcherLastSendHeartbeat) {
+        this.cidWatcherLastSendHeartbeat = cidWatcherLastSendHeartbeat;
+    }
+
+    public Date getCidWatcherLastRecvHeartbeat() {
+        return cidWatcherLastRecvHeartbeat;
+    }
+
+    public void setCidWatcherLastRecvHeartbeat(Date cidWatcherLastRecvHeartbeat) {
+        this.cidWatcherLastRecvHeartbeat = cidWatcherLastRecvHeartbeat;
+    }
+
+
+    public String getCidWatcherLastSendHeartbeatFormat(){
+        return sdf.format(cidWatcherLastSendHeartbeat);
+    }
+
+    public String getCidWatcherLastRecvHeartbeatFormat(){
+        return sdf.format(cidWatcherLastRecvHeartbeat);
+    }
+
+    public String getOwners(){
+        return owners;
+    }
+
+    public long getCidWatchNumbers(){
+        return cidWatchNumbers.get();
+    }
+
+
     @Override
     public String toString() {
         return "{'os':" +
                 getOsInfo() +
                 ",'memory':" +
                 getMemoryInfo() +
+                ",'owners':" +
+                getOwners() +
+                ",'cidWatchNumbers':" +
+                getCidWatchNumbers() +
                 ",'uptime':" +
                 getUptime() +
                 ",'requests':" +
@@ -228,6 +282,10 @@ public class ServerMonitor {
                 ((float) currentProcessTime.get() / 1000) +
                 ",'averageProcessTime':" +
                 ((float) averageProcessTime() / 1000) +
+                ",'cidWatcherLastSendHeartbeat':" +
+                getCidWatcherLastSendHeartbeatFormat()+
+                ",'cidWatcherLastRecvHeartbeat':" +
+                getCidWatcherLastRecvHeartbeatFormat() +
                 "}";
     }
 

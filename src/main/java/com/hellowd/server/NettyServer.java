@@ -1,6 +1,7 @@
 package com.hellowd.server;
 
 import com.hellowd.server.exception.NettyServerBindException;
+import com.hellowd.server.init.HttpServerInitializer;
 import com.hellowd.server.init.TcpServerInitializer;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
@@ -61,12 +62,12 @@ public class NettyServer implements Watcher ,AsyncCallback.StatCallback {
 
 
     @Autowired
-    @Qualifier("servicePort")
-    private int servicePort;
+    @Qualifier("tcpPort")
+    private int tcpPort;
 
     @Autowired
-    @Qualifier("ctrlPort")
-    private int ctrlPort;
+    @Qualifier("httpPort")
+    private int httpPort;
 
 
     @Autowired
@@ -168,7 +169,7 @@ public class NettyServer implements Watcher ,AsyncCallback.StatCallback {
             if(!StringUtils.isEmpty(zookeeperHostPort))
                 zk = new ZooKeeper(zookeeperHostPort,zookeeperSessionTimeout, this);
 
-            logger.info(serviceName + "["+znode+", svc: "+servicePort+", ctrl: "+ctrlPort+"] start.");
+            logger.info(serviceName + "["+znode+", svc: "+tcpPort+", ctrl: "+httpPort+"] start.");
 
         }catch (IOException e) {
             logger.error(e.toString(),e);
@@ -176,41 +177,41 @@ public class NettyServer implements Watcher ,AsyncCallback.StatCallback {
             logger.error("zookeeper 에러다 " + e.toString(),e);
         }
 
-
         EventLoopGroup bossGroup = new NioEventLoopGroup(bossThreadCount);
         EventLoopGroup workerGroup = new NioEventLoopGroup(workerThreadCount);
 
         try{
+
             /*********************************************************
-             * Control channel start
+             * tcp channel start
              ********************************************************/
             ServerBootstrap b2 = new ServerBootstrap();
             b2.group(bossGroup,workerGroup).channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(LogLevel.DEBUG))
-                    .childHandler(new TcpServerInitializer());      //zookeeperResponse 는 나중에 넣어요
-            Channel tcpChannel =b2.bind(ctrlPort).sync().channel();
+                    .childHandler(new TcpServerInitializer());  //zookeeperResponse
+            Channel tcpChannel =b2.bind(tcpPort).sync().channel();
 
             /*********************************************************
-             * Control channel start
+             * http channel start
              ********************************************************/
             ServerBootstrap b = new ServerBootstrap();
             b.group(bossGroup,workerGroup).channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(LogLevel.DEBUG))
-                    .childHandler(new TcpServerInitializer());   //zookeeperResponse 는 나중에 넣어요
-            Channel serviceChannel =b.bind(servicePort).sync().channel();
+                    .childHandler(new HttpServerInitializer());
+            Channel httpChannel = b.bind(httpPort).sync().channel();
 
             /**
              * double port channel
              */
             tcpChannel.closeFuture().sync();
-            serviceChannel.closeFuture().sync();
+            httpChannel.closeFuture().sync();
 
             if(!tcpChannel.isActive()) {
-                throw new NettyServerBindException("Exception : Ctrl Port(ctrlPort) : " + ctrlPort + " is not active.");
+                throw new NettyServerBindException("Exception : Ctrl Port(httpPort) : " + httpPort + " is not active.");
             }
 
-            if(!serviceChannel.isActive()) {
-                throw new NettyServerBindException("Exception : Service Port(servicePort) : " + servicePort + " is not active.");
+            if(!httpChannel.isActive()) {
+                throw new NettyServerBindException("Exception : Service Port(tcpPort) : " + tcpPort + " is not active.");
             }
 
         }catch (InterruptedException | NettyServerBindException e){

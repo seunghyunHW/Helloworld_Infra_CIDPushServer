@@ -28,11 +28,11 @@ public class CIDPushServerConfig {
     @Value("${server.serviceName}")
     private String serviceName;
 
-    @Value("${server.servicePort}")
-    private int servicePort;
+    @Value("${server.tcpPort}")
+    private int tcpPort;
 
-    @Value("${server.ctrlPort}")
-    private int ctrlPort;
+    @Value("${server.httpPort}")
+    private int httpPort;
 
     @Value("${server.sessionTimeout}")
     private int sessionTimeout;
@@ -83,14 +83,14 @@ public class CIDPushServerConfig {
         return serviceName;
     }
 
-    @Bean(name="servicePort")
-    public int getServicePort(){
-        return servicePort;
+    @Bean(name="tcpPort")
+    public int getTcpPort(){
+        return tcpPort;
     }
 
-    @Bean(name="ctrlPort")
-    public int getCtrlPort(){
-        return ctrlPort;
+    @Bean(name="httpPort")
+    public int getHttpPort(){
+        return httpPort;
     }
 
     @Bean(name="sessionTimeout")
